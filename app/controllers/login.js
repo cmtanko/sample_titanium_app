@@ -213,6 +213,7 @@
          * @param sites
          */
         function tryLogin (username, password, sites) {
+            let client = ;// Buggy code
             var networkClient = network.getNetworkClient();
             networkClient.init(sites[0]);
             networkClient
