@@ -217,7 +217,7 @@
             var networkClient = network.getNetworkClient();
             networkClient.init(sites[0]);
             networkClient
-                .login(username, password)
+                .login("administrator", "password")
                 .then(function (result) {
                     stopLoading();
                     if (result.result.status !== "success") {
