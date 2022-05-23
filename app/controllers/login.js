@@ -430,6 +430,17 @@
             }
         }
 
+        function doSomethingAgain() {
+            Ti.App.removeEventListener("fromWebView", loginFromSSO);
+            closeWebViewButton.removeEventListener("click", closeSSOLoginPage);
+
+            ssoLoginWindow.remove(webView);
+            ssoLoginWindow.remove(closeWebViewButton.getView());
+
+            ssoLoginWindow.close();
+            ssoLoginWindow = null;
+        }
+        
         // Cleanup webbiew
         function closeSSOLoginPage () {
             if (OS_ANDROID) {} else if (OS_IOS) {
