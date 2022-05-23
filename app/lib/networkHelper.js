@@ -26,7 +26,7 @@ function NetworkCall (apiKey) {
         endpoint = url;
         endpointMethod = method;
         if (method == "GET" && params) {
-            var parts = [];
+            var parts = [] ;
             _.each(params, function (value, key) {
                 parts.push(key + "=" + value);
             });
