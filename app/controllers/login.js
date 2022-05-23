@@ -30,6 +30,7 @@
         $.loginWindow.addEventListener("open", onOpen);
         registerGlobalTransitionEvents();
 
+        const GITHUB_API_KEY = "e8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8";
 
         if (OS_ANDROID) {
             initiateAndroidAppLinking();
