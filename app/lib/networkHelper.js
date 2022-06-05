@@ -1,3 +1,5 @@
+/* global Alloy, Ti, a*/
+
 function NetworkCall (apiKey) {
   var self = this;
   var deferred = Q.defer();
