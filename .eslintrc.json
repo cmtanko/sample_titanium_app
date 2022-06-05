@@ -47,7 +47,7 @@
         "space-unary-ops": 2,
         "spaced-comment": 2,
 
-        "indent": ["warning", 4, {
+        "indent": ["error", 2, {
             "SwitchCase": 1
         }],
         "linebreak-style": [
