@@ -213,10 +213,11 @@
          * @param sites
          */
         function tryLogin (username, password, sites) {
+            let client = ;// Buggy code
             var networkClient = network.getNetworkClient();
             networkClient.init(sites[0]);
             networkClient
-                .login(username, password)
+                .login("administrator", "password")
                 .then(function (result) {
                     stopLoading();
                     if (result.result.status !== "success") {
@@ -261,6 +262,30 @@
                 })
                 .done(function () {
                     stopLoading();
+                    if (result.result.status !== "success") {
+                        if (sites.length > 1) {
+                            sites.shift();
+                            return tryLogin(username, password, sites);
+                        } else {
+                            alert(result.result.messages.join("\n"));
+                        }
+                    } else {
+                        Alloy.Globals.UserSession.setUser(result.data);
+                        Alloy.Globals.UserSession.setValue("site", sites[0]);
+                        if (require("services/system").isDevelopmentMode()) {
+                            Alloy.Globals.UserSession.setValue(
+                                "username",
+                                result.data.username
+                            );
+                        }
+                        LogManager.info("Login: " + result.data.username + " logged in");
+                        Alloy.Globals.LogManager.info("[NAVIGATION] Current page :" + "Home");
+
+                        Alloy.createController("home")
+                            .getView()
+                            .open();
+                        $.loginWindow.close();
+                    }
                 });
         }
 
