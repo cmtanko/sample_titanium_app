@@ -7,7 +7,6 @@
         let selectedArea = null;
         let lastDetectedQRCodeTime = null;
         let categoryChoices = [];
-        let msgDeclaration = null;
         const Barcode = require("ti.barcode");
         const onsiteService = Alloy.Globals.Services.getService("onsiteService");
         
@@ -22,7 +21,7 @@
     
         init();
 
-        function init () {            
+        function init () {
             setupArea();
             setupBarCode();
             showInitialState();
@@ -61,7 +60,7 @@
                 return;
             }
         
-            var overlay = Ti.UI.createView({
+            let overlay = Ti.UI.createView({
                 backgroundColor: "transparent",
                 top: 0,
                 right: 0,
@@ -69,7 +68,7 @@
                 left: 0
             });
         
-            cameraPermission(function (re) {
+            cameraPermission(function () {
                 reset();
                 Barcode.capture({
                     animate: true,
@@ -173,13 +172,6 @@
 
             Alloy.Globals.dispatcher.trigger("app:formElementUpdated");
         }
-
-        function hideResult () {
-            $.onsiteCard.hide();
-            $.onsiteCard.height = 0;
-            $.onsiteCard.top = 0;
-
-        }
         
         // CHECK & REQUEST FOR CAMERA PERMISSION IF REQUIRED
         function cameraPermission (callback) {
@@ -214,25 +206,6 @@
                 }
             }
         }
-        
-        // SETUP BARCODE PROPERTIES
-        function setupBarCode () {
-            Barcode.allowRotation = true;
-            Barcode.displayedMessage =
-                "Bring the QR Code into view and hold steady.";
-            Barcode.allowMenu = true;
-            Barcode.allowInstructions = true;
-            Barcode.useLED = false;
-        
-            Barcode.addEventListener("error", function (e) {
-                alert("Error reading QR Code");
-                Alloy.Globals.LogManager.info("ONSITE: Error reading QR Code");
-            });
-        
-            Barcode.addEventListener("cancel", function (e) {
-                Ti.API.info("Cancel received");
-            });
-        }
 
         function activateScanButton (isActive = false) {
             $.onsiteScanNumber.text = "-";
@@ -255,7 +228,7 @@
         function setupArea () {
             onsiteService.getAreas().then((areas) => {
                 _.each(areas.data, function (option) {
-                    var choice = {
+                    let choice = {
                         label: option.name,
                         value: option.id,
                         msgDeclaration: option.msg_declaration,
