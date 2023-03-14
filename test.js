@@ -1,159 +1,79 @@
-const axios = require('axios')
+const AWS = require('aws-sdk')
 const qs = require('querystring')
+const ecs = new AWS.ECS()
 
-const JENKINS_URL = process.env.JENKINS_URL
-const JENKINS_AUTH_TOKEN = process.env.JENKINS_AUTH_TOKEN
-const SLACK_INCOMING_HOOK = process.env.SLACK_INCOMING_HOOK
-
-const sendResponse = async (statusCode, message, stringify = true) => ({
-  statusCode,
-  body: stringify ? JSON.stringify(message) : message
-})
-
-const sendSlackMessage = async (message = 'test') => {
-  const SLACK_INCOMING_HOOK = process.env.SLACK_INCOMING_HOOK
-  console.log('Sending Slack Message')
-  let config = {
-    method: 'post',
-    maxBodyLength: Infinity,
-    url: SLACK_INCOMING_HOOK,
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    data: JSON.stringify(message)
-  }
-
-  try {
-    const response = await axios(config)
-    console.warn({ response })
-    return response
-  } catch (error) {
-    console.log('Error sending Slack message: ', error)
-    return error
-  }
-}
-
-const getResponseMenu = data => {
-  console.log('Getting response menu')
-  const output = [
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '*Currently running staging sites:*'
-      }
-    },
-    ...data.serviceArns.map(serviceArn => {
-      const [, , , , , serviceName] = serviceArn.split(':')
-      const [, , siteName] = serviceName.split('/')
-      const [siteClientName] = siteName.split('-')
-      return {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `:large_green_circle: *${siteName}*`
-        },
-        accessory: {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            emoji: true,
-            text: 'Deprovision'
-          },
-          value: siteClientName
-        }
-      }
-    })
-  ]
-  return { blocks: output }
-}
-
-const sendJenkinsJob = async parsedPayload => {
-  let data = qs.stringify({
-    DEPLOYMENT_ENV: 'staging',
-    SITE_NAME: parsedPayload.actions[0].value,
-    USER_NAME: parsedPayload.user.username
-  })
-
-  let jenkinsConfig = {
-    method: 'post',
-    maxBodyLength: Infinity,
-    url: JENKINS_URL,
-    headers: {
-      Authorization: `Basic ${JENKINS_AUTH_TOKEN}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    data: data
-  }
-
-  let result =  await axios(jenkinsConfig)
-  return result
-}
-
-const getHelpMenu = () => {
-  return {
-    blocks: [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*/cevo [Command] [arg1]* \n\n'
-        }
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text:
-            '*<https://integralcs.atlassian.net/wiki/spaces/DEVOPS/pages/2919530497/Cevo+How+to| How to \\cevo>*\nCevo is a Slack slash command bot that helps to provision and de-provision through Slack.'
-        },
-        accessory: {
-          type: 'image',
-          image_url:
-            'https://avatars.slack-edge.com/2023-03-13/4929929773879_a5440936038d485c9d9e_72.jpg',
-          alt_text: 'cevo bot'
-        }
-      },
-      {
-        type: 'divider'
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*Command:*'
-        }
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*list* List all currently staged sites'
-        }
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*help* Get help'
-        }
-      }
-    ]
-  }
-}
-
-const getHelpString = () => {
-  return `> /cevo [Command] [arg1] \n\n
-  *Command:* \n
-  list : \t   _List all currently provisioned sites_ \n
-  help : \t   _Get help_ \n`
-}
-
-module.exports = {
-  getHelpMenu,
+const {
   sendResponse,
-  getHelpString,
-  sendJenkinsJob,
+  sendSlackMessage,
   getResponseMenu,
-  sendSlackMessage
+  getHelpMenu,
+  getHelpString,
+  sendJenkinsJob
+} = require('./responseService')
+
+const { AVAILABLE_COMMANDS } = require('./config')
+
+AWS.config.update({ region: 'ap-southeast-2' })
+
+exports.handler = async event => {
+  try {
+    if (event && event.body && event.body.length > 0) {
+      const body = Buffer.from(event.body, 'base64').toString('utf8')
+      const params = qs.parse(body)
+
+      if (params && params.payload && params.payload.trim().length > 0) {
+        console.warn('Deprovisioning site...')
+        console.warn(JSON.parse(params.payload))
+        let parsedPayload = JSON.parse(params.payload)
+
+        if (parsedPayload.type === 'block_actions') {
+          console.warn('Initiating Jenkins job...')
+          await sendSlackMessage({
+            text:
+              'Initiating Jenkins job.....,\nCheck #deprovision-sites channel for status *'
+          })
+          await sendJenkinsJob(parsedPayload)
+          return sendResponse(200, 'Initiating Jenkins job.....*')
+        }
+      } else if (params && params.text && params.text.trim().length > 0) {
+        const text = params.text.toLowerCase().split(' ')
+        const command = AVAILABLE_COMMANDS[text[0]]
+
+        let arg1 = text[1] && text[1].toString().toLowerCase()
+        let arg2 = text[2] && text[2].toString().toLowerCase()
+
+        console.warn({ text, command, arg1, arg2 })
+
+        switch (command) {
+          case AVAILABLE_COMMANDS.list:
+            console.warn('Listing running services...')
+
+            const data = await ecs
+              .listServices({ cluster: 'integral-staging-Cluster' })
+              .promise()
+
+            await sendSlackMessage(getResponseMenu(data))
+            return sendResponse(200, '*Listing running services...*')
+          case AVAILABLE_COMMANDS.help:
+            await sendSlackMessage(getHelpMenu())
+            return sendResponse(200, '*Getting help*')
+          default:
+            return sendResponse(
+              200,
+              getHelpString(),
+              false
+            )
+        }
+      } else {
+        return sendResponse(
+          200,
+          getHelpString(),
+          false
+        )
+      }
+    }
+  } catch (error) {
+    console.warn(error)
+    return sendResponse(500, `Error: ${error.message}`)
+  }
 }
