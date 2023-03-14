@@ -1,8 +1,9 @@
 const axios = require('axios')
 const qs = require('querystring')
 
-const JENKINS_AUTH_TOKEN = process.env.JENKINS_AUTH_TOKEN;
-const JENKINS_URL = process.env.JENKINS_URL;
+const JENKINS_URL = process.env.JENKINS_URL
+const JENKINS_AUTH_TOKEN = process.env.JENKINS_AUTH_TOKEN
+const SLACK_INCOMING_HOOK = process.env.SLACK_INCOMING_HOOK
 
 const sendResponse = async (statusCode, message, stringify = true) => ({
   statusCode,
@@ -12,7 +13,7 @@ const sendResponse = async (statusCode, message, stringify = true) => ({
 const sendSlackMessage = async (message = 'test') => {
   const SLACK_INCOMING_HOOK = process.env.SLACK_INCOMING_HOOK
   console.log('Sending Slack Message')
-  var config = {
+  let config = {
     method: 'post',
     maxBodyLength: Infinity,
     url: SLACK_INCOMING_HOOK,
@@ -28,6 +29,7 @@ const sendSlackMessage = async (message = 'test') => {
     return response
   } catch (error) {
     console.log('Error sending Slack message: ', error)
+    return error
   }
 }
 
@@ -67,13 +69,13 @@ const getResponseMenu = data => {
 }
 
 const sendJenkinsJob = async parsedPayload => {
-  var data = qs.stringify({
+  let data = qs.stringify({
     DEPLOYMENT_ENV: 'staging',
     SITE_NAME: parsedPayload.actions[0].value,
     USER_NAME: parsedPayload.user.username
   })
 
-  var jenkinsConfig = {
+  let jenkinsConfig = {
     method: 'post',
     maxBodyLength: Infinity,
     url: JENKINS_URL,
@@ -84,18 +86,8 @@ const sendJenkinsJob = async parsedPayload => {
     data: data
   }
 
-  console.warn({ data })
-  console.warn({ jenkinsConfig })
-
-  await axios(jenkinsConfig)
-    .then(function (response) {
-      console.warn({ response })
-      // sendResponseToSlack(`Deprovisioning ${params.payload.actions[0].value}...`)
-    })
-    .catch(function (error) {
-      console.warn({ error })
-      // sendResponseToSlack(`Error deprovisioning ${params.payload.actions[0].value}...`)
-    })
+  let result =  await axios(jenkinsConfig)
+  return result
 }
 
 const getHelpMenu = () => {
@@ -155,8 +147,7 @@ const getHelpString = () => {
   *Command:* \n
   list : \t   _List all currently provisioned sites_ \n
   help : \t   _Get help_ \n`
-};
-
+}
 
 module.exports = {
   getHelpMenu,
